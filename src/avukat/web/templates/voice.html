@@ -2,35 +2,37 @@
 
 {% block content %}
 <article class="voice-panel">
-    <h2>Sesli Hukuk Asistani</h2>
-    <p>Mikrofonu acin ve Turk Ceza Hukuku hakkinda soru sorun. AI asistan sorunuzu arastirip sesli yanit verecek.</p>
+    <h2>&#127908; Sesli Hukuk Asistani</h2>
+    <p class="voice-subtitle">Mikrofonu acin, sorunuzu sorun — AI arastirip sesli yanit verecek.</p>
+
+    <div class="mic-ring" id="mic-ring">
+        <span class="mic-ring-icon">&#127908;</span>
+    </div>
 
     <div class="mic-controls">
-        <button id="btn-mic" class="mic-btn">Konusmaya Basla</button>
-        <button id="btn-stop" class="stop-btn" disabled>Durdur</button>
+        <button id="btn-mic" class="mic-btn">&#9654; Konusmaya Basla</button>
+        <button id="btn-stop" class="stop-btn" disabled>&#9632; Durdur</button>
     </div>
 
     <div class="status-bar">
         <span id="status-dot" class="status-dot gray"></span>
-        <span id="voice-status">Hazir</span>
+        <span id="voice-status">Hazir — mikrofon butonuna basin</span>
     </div>
 </article>
 
 <div class="voice-grid">
-    <section>
-        <h3>Transkript</h3>
+    <section class="voice-section">
+        <h3>&#128172; Konusma</h3>
         <div id="transcript" class="transcript-box">
-            <div class="transcript-line system"><em>Konusmaya baslamak icin mikrofon butonuna basin.</em></div>
+            <div class="transcript-line system"><em>Konusmaya baslamak icin yukardaki butona basin.</em></div>
         </div>
     </section>
 
-    <section>
-        <details open>
-            <summary><strong>Arac Kullanimi</strong></summary>
-            <div id="tool-log" class="tool-log-box">
-                <div class="tool-log-entry"><span class="tool-detail">Henuz arac kullanilmadi.</span></div>
-            </div>
-        </details>
+    <section class="voice-section">
+        <h3>&#128295; Arac Kullanimi</h3>
+        <div id="tool-log" class="tool-log-box">
+            <div class="tool-log-entry"><span class="tool-detail">Henuz arac kullanilmadi.</span></div>
+        </div>
     </section>
 </div>
 {% endblock %}

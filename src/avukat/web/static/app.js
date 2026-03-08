@@ -1,12 +1,26 @@
-// Avukat AI - Minimal JavaScript
+// Avukat AI — Chat JS
 
-// Form gönderiminden sonra input'u temizleme
-document.addEventListener('htmx:afterRequest', function(event) {
-    if (event.detail.elt.tagName === 'FORM') {
-        // Yanıt geldiğinde scroll et
-        const answerArea = document.getElementById('answer-area');
-        if (answerArea && answerArea.children.length > 0) {
-            answerArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+(function() {
+    "use strict";
+
+    // HTMX sonrasi: scroll en alta + input temizle
+    document.addEventListener("htmx:afterSwap", function(event) {
+        var chat = document.getElementById("chat-messages");
+        if (chat) {
+            chat.scrollTop = chat.scrollHeight;
         }
-    }
-});
+        var input = document.getElementById("chat-input");
+        if (input) {
+            input.value = "";
+            input.focus();
+        }
+    });
+
+    // Sayfa yuklendiginde scroll en alta
+    window.addEventListener("load", function() {
+        var chat = document.getElementById("chat-messages");
+        if (chat) {
+            chat.scrollTop = chat.scrollHeight;
+        }
+    });
+})();

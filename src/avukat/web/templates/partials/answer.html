@@ -1,50 +1,48 @@
+<!-- Kullanici mesaji -->
+<div class="msg msg-user">
+    <div class="msg-body">{{ question }}</div>
+    <div class="msg-avatar">Sen</div>
+</div>
+
 {% if error %}
-<article>
-    <header style="background: var(--pico-del-color); color: white; padding: 0.5rem 1rem; border-radius: var(--pico-border-radius);">
-        Hata
-    </header>
-    <p>{{ error }}</p>
-</article>
+<!-- Hata -->
+<div class="msg msg-ai msg-error">
+    <div class="msg-avatar">AI</div>
+    <div class="msg-body"><p>{{ error }}</p></div>
+</div>
 
 {% elif answer %}
-<article>
-    <header>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <strong>Yanıt</strong>
-            <span>
-                {% if confidence >= 0.8 %}
-                    <mark>Güven: Yüksek</mark>
-                {% elif confidence >= 0.5 %}
-                    <mark style="background: orange; color: white;">Güven: Orta</mark>
-                {% else %}
-                    <mark style="background: var(--pico-del-color); color: white;">Güven: Düşük — Doğrulama Önerilir</mark>
-                {% endif %}
-            </span>
+<!-- AI yaniti -->
+<div class="msg msg-ai">
+    <div class="msg-avatar">AI</div>
+    <div class="msg-body">
+        <div class="answer-content">{{ answer | e | replace('\n', '<br>') | safe }}</div>
+
+        {% if sources %}
+        <div class="msg-sources">
+            <details>
+                <summary>Kaynaklar ({{ sources | length }})</summary>
+                {% for source in sources %}
+                <div class="source-chip">
+                    {% if source.law_number == 5237 %}TCK{% else %}CMK{% endif %}
+                    m.{{ source.article_number }}{% if source.title %} — {{ source.title }}{% endif %}
+                </div>
+                {% endfor %}
+            </details>
         </div>
-    </header>
+        {% endif %}
 
-    <div class="answer-content">
-        {{ answer | replace('\n', '<br>') | safe }}
+        {% if confidence is defined %}
+        <div class="msg-confidence">
+            {% if confidence >= 0.8 %}
+                <span class="conf-high">Guven: Yuksek</span>
+            {% elif confidence >= 0.5 %}
+                <span class="conf-mid">Guven: Orta</span>
+            {% else %}
+                <span class="conf-low">Guven: Dusuk</span>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
-</article>
-
-{% if sources %}
-<details open>
-    <summary><strong>Dayanak Kaynaklar ({{ sources | length }})</strong></summary>
-    {% for source in sources %}
-    <article class="source-card">
-        <header>
-            <small>
-                [Kaynak {{ source.index }}]
-                {% if source.law_number == 5237 %}TCK{% else %}CMK{% endif %}
-                Madde {{ source.article_number }}
-                {% if source.title %} — {{ source.title }}{% endif %}
-            </small>
-        </header>
-        <p><small>{{ source.text_snippet }}{% if source.text_snippet | length >= 297 %}...{% endif %}</small></p>
-    </article>
-    {% endfor %}
-</details>
-{% endif %}
-
+</div>
 {% endif %}

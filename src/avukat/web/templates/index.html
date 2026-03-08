@@ -1,29 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-<article>
-    <h2>Hukuki Soru Sorun</h2>
-    <p>Türk Ceza Kanunu (TCK) ve Ceza Muhakemesi Kanunu (CMK) kapsamında sorularınızı yanıtlıyorum.</p>
+<div class="chat-container">
+    <div id="chat-messages" class="chat-messages">
+        <!-- Karsilama mesaji -->
+        <div class="msg msg-ai">
+            <div class="msg-avatar">AI</div>
+            <div class="msg-body">
+                <p>Merhaba, ben <strong>Avukat AI</strong> — buronuzun dijital hukuk asistaniyim.</p>
+                <p><strong>Neler yapabilirim:</strong></p>
+                <ul>
+                    <li>TCK ve CMK'daki <strong>677 madde</strong> uzerinde anlamsal arama</li>
+                    <li><a href="/voice">Sesli sohbet</a> ile mikrofon uzerinden konusma</li>
+                    <li>Sizi ve devam eden davalarinizi <strong>hatirlarim</strong></li>
+                </ul>
+                <p>Nasil yardimci olabilirim?</p>
+            </div>
+        </div>
+    </div>
 
-    <form hx-post="/ask" hx-target="#answer-area" hx-swap="innerHTML" hx-indicator="#loading">
-        <fieldset role="group">
+    <div id="loading" class="chat-loading htmx-indicator">
+        <div class="msg msg-ai">
+            <div class="msg-avatar">AI</div>
+            <div class="msg-body"><p aria-busy="true">Arastiriyorum...</p></div>
+        </div>
+    </div>
+
+    <form id="chat-form" hx-post="/ask" hx-target="#chat-messages" hx-swap="beforeend" hx-indicator="#loading">
+        <div class="chat-input-row">
             <input
                 type="text"
                 name="question"
-                placeholder="Örnek: Hırsızlık suçunun cezası nedir?"
+                id="chat-input"
+                placeholder="Mesajinizi yazin..."
                 required
                 autofocus
+                autocomplete="off"
             >
-            <button type="submit">Sor</button>
-        </fieldset>
+            <button type="submit">Gonder</button>
+        </div>
     </form>
-
-    <div id="loading" class="htmx-indicator">
-        <p aria-busy="true">Yanıt hazırlanıyor, kaynaklar taranıyor...</p>
-    </div>
-</article>
-
-<section id="answer-area">
-    <!-- Yanıt buraya HTMX ile yüklenecek -->
-</section>
+</div>
 {% endblock %}

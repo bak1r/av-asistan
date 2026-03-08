@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import uuid
 
@@ -24,7 +23,10 @@ class VoiceSessionManager:
     """Tek bir sesli konusma oturumunu yonetir.
 
     Gemini Live API (v1beta) ile bidirectional audio streaming.
-    connect() async context manager olarak kullanilir.
+    - Input:  PCM 16-bit 16kHz mono (tarayicidan)
+    - Output: PCM 16-bit 24kHz mono (Gemini'den)
+    - AUDIO modunda text output = thinking (ic dusunce), ses degildir.
+    - Transcript: input/output_transcription ile gelir (varsa).
     """
 
     def __init__(
@@ -50,10 +52,14 @@ class VoiceSessionManager:
         self._events: asyncio.Queue[dict | None] = asyncio.Queue(maxsize=100)
 
         self._gemini_session = None
-        self._gemini_ctx = None  # async context manager
+        self._gemini_ctx = None
         self._running = False
         self._turn_count = 0
         self._conversation_text: list[str] = []
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
 
     async def start(self):
         """Gemini Live API'ye baglan ve streaming'i baslat."""
@@ -68,27 +74,40 @@ class VoiceSessionManager:
         # Hafizayi prompt'a ekle
         system_prompt = VOICE_SYSTEM_PROMPT
         if self.memory_service:
-            memory_context = await self.memory_service.format_for_prompt(self.user_id)
-            if memory_context:
-                system_prompt = f"{system_prompt}\n\n{memory_context}"
+            try:
+                memory_context = await self.memory_service.format_for_prompt(self.user_id)
+                if memory_context:
+                    system_prompt = f"{system_prompt}\n\n{memory_context}"
+            except Exception as e:
+                logger.warning(f"Memory load failed: {e}")
 
         # Tool tanimlari
         tool_declarations = [{"function_declarations": ALL_TOOLS}]
 
-        config = types.LiveConnectConfig(
-            response_modalities=["AUDIO"],
-            speech_config=types.SpeechConfig(
+        # Config
+        config_kwargs = {
+            "response_modalities": ["AUDIO"],
+            "speech_config": types.SpeechConfig(
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Aoede")
                 )
             ),
-            system_instruction=types.Content(
+            "system_instruction": types.Content(
                 parts=[types.Part(text=system_prompt)]
             ),
-            tools=tool_declarations,
-        )
+            "tools": tool_declarations,
+        }
 
-        # Yeni API: connect() async context manager dondurur
+        # Transcription — input ve output sesinin text halini al (destekleniyorsa)
+        try:
+            config_kwargs["input_audio_transcription"] = types.AudioTranscriptionConfig()
+            config_kwargs["output_audio_transcription"] = types.AudioTranscriptionConfig()
+        except (AttributeError, TypeError):
+            logger.debug("AudioTranscriptionConfig not available in this SDK version")
+
+        config = types.LiveConnectConfig(**config_kwargs)
+
+        # connect() async context manager dondurur
         self._gemini_ctx = client.aio.live.connect(
             model=f"models/{self.settings.gemini_live_model}",
             config=config,
@@ -97,10 +116,10 @@ class VoiceSessionManager:
         self._running = True
 
         await self._events.put({"type": "status", "state": "connected"})
-        logger.info(f"Voice session {self.session_id} started for user {self.user_id}")
+        logger.info(f"Voice session {self.session_id} started (user={self.user_id})")
 
     async def run(self):
-        """Ana dongu: Gemini'ye audio gonder ve yanit al."""
+        """Ana dongu: audio gonder + yanit al (2 concurrent task)."""
         tasks = [
             asyncio.create_task(self._send_audio_to_gemini()),
             asyncio.create_task(self._receive_from_gemini()),
@@ -108,8 +127,12 @@ class VoiceSessionManager:
         try:
             await asyncio.gather(*tasks)
         except Exception as e:
-            logger.error(f"Voice session error: {e}")
-            await self._events.put({"type": "error", "message": str(e)})
+            if self._running:
+                logger.error(f"Voice session error: {e}")
+                try:
+                    await self._events.put({"type": "error", "message": str(e)})
+                except Exception:
+                    pass
         finally:
             for t in tasks:
                 if not t.done():
@@ -118,11 +141,15 @@ class VoiceSessionManager:
     async def stop(self):
         """Oturumu kapat."""
         self._running = False
-        # Kuyruklara None gonder (sentinel) tum task'leri durdur
-        await self._audio_in.put(None)
-        await self._audio_out.put(None)
-        await self._events.put(None)
 
+        # Sentinel'leri non-blocking gonder
+        for q in (self._audio_in, self._audio_out, self._events):
+            try:
+                q.put_nowait(None)
+            except asyncio.QueueFull:
+                pass
+
+        # Gemini baglantisini kapat
         if self._gemini_ctx:
             try:
                 await self._gemini_ctx.__aexit__(None, None, None)
@@ -131,61 +158,78 @@ class VoiceSessionManager:
             self._gemini_session = None
             self._gemini_ctx = None
 
-        # Hafiza cikarimi yap (her oturum sonunda)
+        # Hafiza cikarimi (oturum sonunda)
         if self.memory_service and self._conversation_text:
             try:
-                full_text = "\n".join(self._conversation_text)
+                full_text = "\n".join(self._conversation_text[-50:])  # Son 50 satir
                 await self.memory_service.extract_and_store(
                     self.user_id, full_text, self.session_id
                 )
             except Exception as e:
                 logger.warning(f"Memory extraction failed: {e}")
 
-        logger.info(f"Voice session {self.session_id} stopped")
+        logger.info(f"Voice session {self.session_id} stopped ({self._turn_count} turns)")
+
+    # ------------------------------------------------------------------
+    # Public queue accessors
+    # ------------------------------------------------------------------
 
     async def feed_audio(self, chunk: bytes):
         """WebSocket'ten gelen PCM audio verisini kuyruga ekle."""
         if self._running:
-            await self._audio_in.put(chunk)
+            try:
+                self._audio_in.put_nowait(chunk)
+            except asyncio.QueueFull:
+                pass  # Frame drop — kuyruk dolu
 
     async def output_audio_stream(self):
         """Gemini'den gelen audio chunk'larini yield et."""
         while self._running:
-            chunk = await self._audio_out.get()
-            if chunk is None:
-                break
-            yield chunk
+            try:
+                chunk = await asyncio.wait_for(self._audio_out.get(), timeout=1.0)
+                if chunk is None:
+                    break
+                yield chunk
+            except asyncio.TimeoutError:
+                continue
 
     async def event_stream(self):
-        """JSON event'lerini yield et (transcript, tool_call, status)."""
+        """JSON event'lerini yield et."""
         while self._running:
-            event = await self._events.get()
-            if event is None:
-                break
-            yield event
+            try:
+                event = await asyncio.wait_for(self._events.get(), timeout=1.0)
+                if event is None:
+                    break
+                yield event
+            except asyncio.TimeoutError:
+                continue
 
-    # --- Internal async tasks ---
+    # ------------------------------------------------------------------
+    # Internal: Gemini I/O tasks
+    # ------------------------------------------------------------------
 
     async def _send_audio_to_gemini(self):
         """Audio kuyrugunu Gemini'ye realtime_input olarak gonder."""
         from google.genai import types
 
         while self._running:
-            chunk = await self._audio_in.get()
+            try:
+                chunk = await asyncio.wait_for(self._audio_in.get(), timeout=1.0)
+            except asyncio.TimeoutError:
+                continue
             if chunk is None:
                 break
             try:
                 await self._gemini_session.send_realtime_input(
-                    media=types.Blob(
-                        data=chunk,
-                        mime_type="audio/pcm",
-                    )
+                    media=types.Blob(data=chunk, mime_type="audio/pcm")
                 )
             except Exception as e:
                 logger.warning(f"Send audio error: {e}")
+                if "closed" in str(e).lower() or "cancel" in str(e).lower():
+                    break
 
     async def _receive_from_gemini(self):
-        """Gemini'den gelen yanitlari isle: audio + tool call + transcript."""
+        """Gemini'den gelen yanitlari isle: audio + thinking + transcript + tool call."""
         from google.genai import types
 
         try:
@@ -193,23 +237,59 @@ class VoiceSessionManager:
                 if not self._running:
                     break
 
-                # Audio yanit
+                # --- Server content (audio, text, turn signals, transcription) ---
                 server_content = getattr(response, "server_content", None)
                 if server_content:
+                    # Model turn — audio parcalari ve thinking text
                     model_turn = getattr(server_content, "model_turn", None)
-                    if model_turn:
+                    if model_turn and hasattr(model_turn, "parts") and model_turn.parts:
                         for part in model_turn.parts:
+                            # Audio data → playback kuyrugununa
                             if hasattr(part, "inline_data") and part.inline_data:
-                                await self._audio_out.put(part.inline_data.data)
+                                data = part.inline_data.data
+                                if isinstance(data, bytes) and len(data) > 0:
+                                    logger.debug(f"Audio chunk: {len(data)} bytes")
+                                    await self._audio_out.put(data)
+
+                            # AUDIO modunda text = thinking (ic dusunce, ses degildir)
                             if hasattr(part, "text") and part.text:
-                                self._conversation_text.append(f"AI: {part.text}")
+                                self._conversation_text.append(f"AI (dusunce): {part.text}")
                                 await self._events.put({
-                                    "type": "transcript",
-                                    "role": "assistant",
+                                    "type": "thinking",
                                     "text": part.text,
                                 })
 
-                # Tool call
+                    # Turn complete — model konusmayi bitirdi
+                    if getattr(server_content, "turn_complete", False):
+                        self._turn_count += 1
+                        await self._events.put({"type": "turn_complete"})
+                        logger.debug(f"Turn {self._turn_count} complete")
+
+                    # Output transcription — modelin soyledigi sesin text hali
+                    output_tr = getattr(server_content, "output_transcription", None)
+                    if output_tr:
+                        text = getattr(output_tr, "text", "")
+                        if text and text.strip():
+                            self._conversation_text.append(f"AI: {text}")
+                            await self._events.put({
+                                "type": "transcript",
+                                "role": "assistant",
+                                "text": text,
+                            })
+
+                    # Input transcription — kullanicinin soyledigi sesin text hali
+                    input_tr = getattr(server_content, "input_transcription", None)
+                    if input_tr:
+                        text = getattr(input_tr, "text", "")
+                        if text and text.strip():
+                            self._conversation_text.append(f"User: {text}")
+                            await self._events.put({
+                                "type": "transcript",
+                                "role": "user",
+                                "text": text,
+                            })
+
+                # --- Tool call ---
                 tool_call = getattr(response, "tool_call", None)
                 if tool_call:
                     for fc in tool_call.function_calls:
@@ -222,7 +302,6 @@ class VoiceSessionManager:
                         result = await self._dispatch_tool(
                             fc.name, dict(fc.args) if fc.args else {}
                         )
-                        self._turn_count += 1
 
                         await self._events.put({
                             "type": "tool_result",
@@ -230,7 +309,7 @@ class VoiceSessionManager:
                             "result": result,
                         })
 
-                        # Sonucu Gemini'ye gonder (yeni API — id gerekli)
+                        # Sonucu Gemini'ye geri gonder (id gerekli)
                         await self._gemini_session.send_tool_response(
                             function_responses=[types.FunctionResponse(
                                 id=fc.id,
@@ -238,10 +317,18 @@ class VoiceSessionManager:
                                 response=result,
                             )]
                         )
+
         except Exception as e:
             if self._running:
-                logger.error(f"Receive error: {e}")
-                await self._events.put({"type": "error", "message": str(e)})
+                logger.error(f"Receive error: {e}", exc_info=True)
+                try:
+                    await self._events.put({"type": "error", "message": str(e)})
+                except Exception:
+                    pass
+
+    # ------------------------------------------------------------------
+    # Tool dispatch
+    # ------------------------------------------------------------------
 
     async def _dispatch_tool(self, tool_name: str, args: dict) -> dict:
         """Arac cagrisini ilgili fonksiyona yonlendir."""
