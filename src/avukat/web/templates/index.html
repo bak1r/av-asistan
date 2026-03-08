@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article>
+    <h2>Hukuki Soru Sorun</h2>
+    <p>Türk Ceza Kanunu (TCK) ve Ceza Muhakemesi Kanunu (CMK) kapsamında sorularınızı yanıtlıyorum.</p>
+
+    <form hx-post="/ask" hx-target="#answer-area" hx-swap="innerHTML" hx-indicator="#loading">
+        <fieldset role="group">
+            <input
+                type="text"
+                name="question"
+                placeholder="Örnek: Hırsızlık suçunun cezası nedir?"
+                required
+                autofocus
+            >
+            <button type="submit">Sor</button>
+        </fieldset>
+    </form>
+
+    <div id="loading" class="htmx-indicator">
+        <p aria-busy="true">Yanıt hazırlanıyor, kaynaklar taranıyor...</p>
+    </div>
+</article>
+
+<section id="answer-area">
+    <!-- Yanıt buraya HTMX ile yüklenecek -->
+</section>
+{% endblock %}

@@ -1,0 +1,40 @@
+/* Avukat AI - Özel stiller */
+
+/* HTMX loading göstergesi */
+.htmx-indicator {
+    display: none;
+}
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    display: block;
+}
+
+/* Yanıt içeriği */
+.answer-content {
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
+
+/* Kaynak kartları */
+.source-card {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+}
+.source-card header {
+    padding: 0.3rem 0.5rem;
+    margin-bottom: 0.3rem;
+}
+
+/* Footer */
+footer {
+    margin-top: 2rem;
+    border-top: 1px solid var(--pico-muted-border-color);
+    padding-top: 1rem;
+    text-align: center;
+    opacity: 0.7;
+}
+
+/* Soru formu */
+form fieldset[role="group"] {
+    margin-bottom: 0;
+}

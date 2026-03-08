@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title | default("Avukat AI") }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><strong>&#9878; Avukat AI</strong></li>
+            </ul>
+            <ul>
+                <li><small>Türk Ceza Hukuku Asistanı</small></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <small>
+            <p>Bu sistem genel bilgilendirme amaçlıdır ve hukuki tavsiye niteliği taşımaz.
+            Hukuki kararlar için mutlaka bir avukata danışın.</p>
+        </small>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
