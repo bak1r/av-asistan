@@ -1,0 +1,1 @@
+"""Browser otomasyon modulu (Playwright)."""

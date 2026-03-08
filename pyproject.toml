@@ -1,7 +1,7 @@
 [project]
 name = "avukat-ai"
-version = "0.1.0"
-description = "Türk Ceza Hukuku AI Asistanı - RAG tabanlı soru-cevap sistemi"
+version = "0.2.0"
+description = "Turk Ceza Hukuku AI Asistani - RAG + Sesli Asistan + Browser Otomasyon"
 requires-python = ">=3.10"
 dependencies = [
     # Web framework
@@ -10,6 +10,7 @@ dependencies = [
     "jinja2>=3.1.0",
     "python-multipart>=0.0.9",
     "sse-starlette>=2.0.0",
+    "websockets>=12.0",
 
     # Database
     "sqlalchemy[asyncio]>=2.0.0",
@@ -27,6 +28,7 @@ dependencies = [
     # LLM clients
     "anthropic>=0.40.0",
     "openai>=1.50.0",
+    "google-genai>=1.0.0",
 
     # Config
     "pydantic-settings>=2.0.0",
@@ -34,14 +36,18 @@ dependencies = [
 
     # Utils
     "rich>=13.0.0",
+    "numpy>=1.24.0",
 ]
 
 [project.optional-dependencies]
+voice = ["google-genai>=1.0.0"]
+browser = ["playwright>=1.40.0"]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "ruff>=0.6.0",
 ]
+all = ["google-genai>=1.0.0", "playwright>=1.40.0"]
 
 [build-system]
 requires = ["setuptools>=68.0"]

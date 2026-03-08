@@ -60,7 +60,22 @@ async def ask(request: Request):
         })
 
 
+@router.get("/voice", response_class=HTMLResponse)
+async def voice_page(request: Request):
+    """Sesli asistan sayfasi."""
+    settings = request.app.state.settings
+    if not settings.voice_enabled:
+        return HTMLResponse(
+            "<h2>Sesli asistan devre disi.</h2><p>VOICE_ENABLED=true ayarlayin.</p>",
+            status_code=403,
+        )
+    return request.app.state.templates.TemplateResponse("voice.html", {
+        "request": request,
+        "title": "Sesli Asistan - Avukat AI",
+    })
+
+
 @router.get("/health")
 async def health():
-    """Sağlık kontrolü."""
+    """Saglik kontrolu."""
     return {"status": "ok"}

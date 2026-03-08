@@ -7,12 +7,12 @@ from dataclasses import dataclass, field
 class Article:
     """Bir kanun maddesi."""
     law_number: int           # 5237 (TCK) veya 5271 (CMK)
-    law_name: str             # "Türk Ceza Kanunu"
+    law_name: str             # "Turk Ceza Kanunu"
     article_number: str       # "81", "142/1"
     text: str                 # Madde tam metni
-    title: str = ""           # Madde başlığı
-    chapter: str = ""         # Bölüm
-    section: str = ""         # Kısım
+    title: str = ""           # Madde basligi
+    chapter: str = ""         # Bolum
+    section: str = ""         # Kisim
     amendment_notes: list[str] = field(default_factory=list)
 
 
@@ -31,7 +31,7 @@ class SearchResult:
 
 @dataclass
 class VerifiedSource:
-    """Doğrulanmış kaynak."""
+    """Dogrulanmis kaynak."""
     index: int
     law_number: int
     law_name: str
@@ -42,9 +42,25 @@ class VerifiedSource:
 
 @dataclass
 class RAGResponse:
-    """RAG pipeline çıktısı."""
+    """RAG pipeline ciktisi."""
     question: str
     answer: str
     sources: list[VerifiedSource]
     confidence: float
     search_results: list[SearchResult]
+
+
+@dataclass
+class VoiceEvent:
+    """WebSocket uzerinden gonderilen sesli asistan olaylari."""
+    type: str       # transcript | tool_call | tool_result | status | error
+    data: dict = field(default_factory=dict)
+
+
+@dataclass
+class MemoryFact:
+    """Hafizadan cikan bir bilgi parcasi."""
+    category: str
+    key: str
+    value: str
+    confidence: float = 1.0

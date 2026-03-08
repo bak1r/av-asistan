@@ -1,0 +1,1 @@
+"""Kullanici hafiza yonetimi."""

@@ -12,10 +12,11 @@
     <header class="container">
         <nav>
             <ul>
-                <li><strong>&#9878; Avukat AI</strong></li>
+                <li><a href="/" class="brand"><strong>&#9878; Avukat AI</strong></a></li>
             </ul>
             <ul>
-                <li><small>Türk Ceza Hukuku Asistanı</small></li>
+                <li><a href="/">Metin Modu</a></li>
+                <li><a href="/voice">Sesli Asistan</a></li>
             </ul>
         </nav>
     </header>
@@ -26,11 +27,13 @@
 
     <footer class="container">
         <small>
-            <p>Bu sistem genel bilgilendirme amaçlıdır ve hukuki tavsiye niteliği taşımaz.
-            Hukuki kararlar için mutlaka bir avukata danışın.</p>
+            <p>Avukat AI &mdash; Turk Ceza Hukuku Bilgi Asistani (TCK + CMK, 677 madde)
+            <br>Bu sistem genel bilgilendirme amaclidir ve hukuki tavsiye niteligi tasimaz.</p>
         </small>
     </footer>
 
+    {% block scripts %}
     <script src="/static/app.js"></script>
+    {% endblock %}
 </body>
 </html>

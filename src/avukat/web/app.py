@@ -58,4 +58,9 @@ def create_app() -> FastAPI:
     from avukat.web.routes import router
     app.include_router(router)
 
+    # Sesli asistan WebSocket (feature flag)
+    if settings.voice_enabled:
+        from avukat.web.ws import ws_router
+        app.include_router(ws_router)
+
     return app

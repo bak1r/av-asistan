@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<article class="voice-panel">
+    <h2>Sesli Hukuk Asistani</h2>
+    <p>Mikrofonu acin ve Turk Ceza Hukuku hakkinda soru sorun. AI asistan sorunuzu arastirip sesli yanit verecek.</p>
+
+    <div class="mic-controls">
+        <button id="btn-mic" class="mic-btn">Konusmaya Basla</button>
+        <button id="btn-stop" class="stop-btn" disabled>Durdur</button>
+    </div>
+
+    <div class="status-bar">
+        <span id="status-dot" class="status-dot gray"></span>
+        <span id="voice-status">Hazir</span>
+    </div>
+</article>
+
+<div class="voice-grid">
+    <section>
+        <h3>Transkript</h3>
+        <div id="transcript" class="transcript-box">
+            <div class="transcript-line system"><em>Konusmaya baslamak icin mikrofon butonuna basin.</em></div>
+        </div>
+    </section>
+
+    <section>
+        <details open>
+            <summary><strong>Arac Kullanimi</strong></summary>
+            <div id="tool-log" class="tool-log-box">
+                <div class="tool-log-entry"><span class="tool-detail">Henuz arac kullanilmadi.</span></div>
+            </div>
+        </details>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/voice.js"></script>
+{% endblock %}
