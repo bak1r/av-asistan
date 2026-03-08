@@ -15,9 +15,9 @@ async def vector_search(
     """Vektör benzerliğine göre madde ara."""
     query = sql_text("""
         SELECT id, law_number, law_name, article_number, title, text_clean,
-               1 - (embedding <=> :query_vec::vector) AS score
+               1 - (embedding <=> CAST(:query_vec AS vector)) AS score
         FROM law_articles
-        ORDER BY embedding <=> :query_vec::vector
+        ORDER BY embedding <=> CAST(:query_vec AS vector)
         LIMIT :top_k
     """)
     result = await session.execute(query, {

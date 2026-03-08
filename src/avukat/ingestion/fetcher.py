@@ -155,47 +155,78 @@ class BedestinFetcher:
         return flat
 
     async def fetch_law_articles(self, law_number: int) -> list[dict]:
-        """Bir kanunun tüm maddelerini çek.
+        """Bir kanunun tum maddelerini cek.
+
+        Strateji: Tam metni tek seferde cek + madde agacindan metadata al.
+        Boylece 345 API cagrisi yerine sadece 3 cagri yapiyoruz.
 
         Returns:
             [{madde_no, title, chapter, section, html_content}, ...]
         """
+        import re
+        from bs4 import BeautifulSoup
+
         law_name = LAWS.get(law_number, f"Kanun {law_number}")
-        console.print(f"\n[bold blue]📖 {law_name} ({law_number}) çekiliyor...[/]")
+        console.print(f"\n[bold blue]{law_name} ({law_number}) cekiliyor...[/]")
 
         # 1. Kanunu bul
         law_info = await self.search_law(law_number)
         if not law_info:
-            console.print(f"[red]❌ Kanun {law_number} bulunamadı![/]")
+            console.print(f"[red]HATA: Kanun {law_number} bulunamadi![/]")
             return []
 
         mevzuat_id = law_info["mevzuatId"]
         console.print(f"  Mevzuat ID: {mevzuat_id}")
 
-        # 2. Madde ağacını çek
+        # 2. Madde agacini cek (metadata: baslik, bolum, kisim)
         tree = await self.get_article_tree(mevzuat_id)
         flat_articles = self.flatten_tree(tree)
-        console.print(f"  {len(flat_articles)} madde bulundu")
+        console.print(f"  {len(flat_articles)} madde bulundu (agac)")
 
-        # 3. Her maddenin içeriğini çek
+        # 3. Tam metni tek seferde cek (1 API cagrisi)
+        console.print("  Tam metin cekiliyor...")
+        full_html = await self.get_full_content(mevzuat_id)
+        console.print(f"  Tam metin: {len(full_html)} karakter")
+
+        # 4. HTML'den temiz metin cikar
+        soup = BeautifulSoup(full_html, "lxml")
+        full_text = soup.get_text(separator="\n")
+
+        # 5. Madde metinlerini regex ile ayir
+        # "Madde 1 -" veya "Madde 81 -" vb. pattern
+        splits = re.split(r"((?:Madde|MADDE)\s+(\d+)\s*[\-\u2013]?)", full_text)
+
+        article_texts: dict[str, str] = {}
+        i = 0
+        while i < len(splits):
+            # Regex gruplari: [onceki_metin, "Madde N -", "N", sonraki_metin, ...]
+            if i + 2 < len(splits) and splits[i + 2] and splits[i + 2].isdigit():
+                madde_no = splits[i + 2]
+                header = splits[i + 1]  # "Madde N -"
+                # Sonraki bolume kadar olan metin
+                content = splits[i + 3] if i + 3 < len(splits) else ""
+                article_texts[madde_no] = (header + content).strip()
+                i += 3
+            else:
+                i += 1
+
+        # 6. Agac metadatasiyla eslestir
         articles = []
-        for i, article_info in enumerate(flat_articles):
-            html = await self.get_article_content(article_info["madde_id"])
+        matched = 0
+        for article_info in flat_articles:
+            madde_no = str(article_info["madde_no"]).strip()
+            text = article_texts.get(madde_no, "")
+            if text:
+                matched += 1
             articles.append({
                 "law_number": law_number,
                 "law_name": law_name,
-                "madde_no": article_info["madde_no"],
+                "madde_no": madde_no,
                 "title": article_info["title"],
                 "chapter": article_info["chapter"],
                 "section": article_info["section"],
-                "html_content": html,
+                "html_content": text,
             })
 
-            if (i + 1) % 50 == 0:
-                console.print(f"  {i + 1}/{len(flat_articles)} madde çekildi...")
-
-            # Rate limiting: API'yi yormamak için kısa bekle
-            await asyncio.sleep(0.1)
-
-        console.print(f"  [green]✓ {len(articles)} madde başarıyla çekildi[/]")
+        console.print(f"  [green]{matched}/{len(flat_articles)} madde eslesti[/]")
         return articles

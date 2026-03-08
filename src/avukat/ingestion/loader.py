@@ -76,14 +76,17 @@ async def load_law(
 
         await session.commit()
 
-        # tsvector güncelle (trigger yoksa manuel)
+        # tsvector güncelle: başlık (A ağırlığı) + metin (D ağırlığı)
         await session.execute(sql_text(
-            "UPDATE law_articles SET text_search = to_tsvector('simple', text_clean) "
+            "UPDATE law_articles SET text_search = "
+            "setweight(to_tsvector('simple', coalesce(title, '')), 'A') || "
+            "setweight(to_tsvector('simple', coalesce(chapter, '')), 'B') || "
+            "setweight(to_tsvector('simple', text_clean), 'D') "
             "WHERE law_number = :law_no"
         ), {"law_no": law_number})
         await session.commit()
 
-    console.print(f"[green bold]✓ {count} madde veritabanına yüklendi[/]")
+    console.print(f"[green bold]{count} madde veritabanina yuklendi[/]")
     return count
 
 
@@ -99,5 +102,5 @@ async def load_all_laws(settings: Settings | None = None) -> int:
         count = await load_law(law_number, settings, embedder)
         total += count
 
-    console.print(f"\n[green bold]═══ Toplam {total} madde yüklendi ═══[/]")
+    console.print(f"\n[green bold]Toplam {total} madde yuklendi[/]")
     return total

@@ -14,8 +14,8 @@ class ArticleEmbedder:
     """sentence-transformers ile madde embedding üretici."""
 
     def __init__(self, model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"):
-        console.print(f"[bold]Embedding modeli yükleniyor: {model_name}[/]")
-        self.model = SentenceTransformer(model_name)
+        console.print(f"[bold]Embedding modeli yukleniyor: {model_name}[/]")
+        self.model = SentenceTransformer(model_name, device="cpu")
         self.dimension = self.model.get_sentence_embedding_dimension()
         console.print(f"  Boyut: {self.dimension}")
 
